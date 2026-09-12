@@ -1,0 +1,23 @@
+# Build output and temporary dependency checkouts
+/target/
+/.build-deps/
+*.class
+
+# Local IDE and operating-system files
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+.vscode/
+.DS_Store
+Thumbs.db
+*~
+*.swp
+
+# Local task instructions and machine-specific configuration
+/CODEX_TASK.md
+.env
+.env.*
+!.env.example
+*.log
