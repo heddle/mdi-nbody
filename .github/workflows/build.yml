@@ -26,7 +26,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: heddle/mdi
-          ref: ea9823f8aceec7b827731f5fdbd55f4528200a42
+          ref: 3ecb594b493aedd45055901489d3814b4dc7bdd8
           path: .build-deps/mdi
       - name: Install MDI dependency
         run: mvn --batch-mode --no-transfer-progress -f .build-deps/mdi/pom.xml -DskipTests -Dmaven.javadoc.skip=true install

@@ -10,7 +10,7 @@ Requires JDK 17+, Maven, and a graphical desktop to run the application. Tests r
 
 ```sh
 git clone https://github.com/heddle/mdi.git .build-deps/mdi
-git -C .build-deps/mdi checkout ea9823f8aceec7b827731f5fdbd55f4528200a42
+git -C .build-deps/mdi checkout 3ecb594b493aedd45055901489d3814b4dc7bdd8
 mvn -f .build-deps/mdi/pom.xml -DskipTests -Dmaven.javadoc.skip=true install
 mvn verify
 mvn compile exec:java
