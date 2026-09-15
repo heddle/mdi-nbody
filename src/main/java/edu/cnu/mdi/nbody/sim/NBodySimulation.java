@@ -24,6 +24,7 @@ public final class NBodySimulation implements Simulation {
     /** Bind before starting the engine. */
     public void bind(SimulationEngine engine) { this.engine = java.util.Objects.requireNonNull(engine); }
     public Snapshot snapshot() { return latest; }
+    public Parameters parameters() { return parameters; }
     public void setUpdateHz(int hz) {
         if (hz < 1 || hz > 60) throw new IllegalArgumentException("Update rate must be 1–60 Hz");
         updateHz = hz;

@@ -14,7 +14,7 @@ abstract class DiagnosticPlotView extends PlotView {
     private static final int MAX_SAMPLES = 10000;
     DiagnosticPlotView(String title, String ylabel, String... names) {
         super(PropertyUtils.TITLE, title, PropertyUtils.WIDTH, 520, PropertyUtils.HEIGHT, 310,
-                PropertyUtils.VISIBLE, true);
+                PropertyUtils.VISIBLE, true, PropertyUtils.ADDFEEDBACK, false);
         try {
             var data = new PlotData(PlotDataType.XYEXYE, names, null);
             curves = new Curve[names.length];
@@ -30,7 +30,10 @@ abstract class DiagnosticPlotView extends PlotView {
             canvas.getPlotTicks().setNumMajorTickY(3);
             canvas.getPlotTicks().setNumMinorTickY(2);
             canvas.getPlotTicks().setTickFont(edu.cnu.mdi.ui.fonts.Fonts.smallFont);
-            switchToPlotPanel(new PlotPanel(canvas));
+            PlotParameters params = canvas.getParameters();
+            params.setMinExponentY(6).setNumDecimalY(2);
+
+            switchToPlotPanel(createDecoratedPlotPanel(canvas));
         } catch (PlotDataException ex) { throw new IllegalStateException(ex); }
     }
     protected void addSample(double time, double... values) {

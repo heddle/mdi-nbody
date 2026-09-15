@@ -25,5 +25,12 @@ public final class BodyInfoView extends BaseView {
         row("Speed", b.speed()); row("Kinetic energy", b.kineticEnergy());
         row("Distance from COM", Math.hypot(b.x()-s.diagnostics().comX(), b.y()-s.diagnostics().comY()));
     }
+    public void acceptSetup(Body body) {
+        table.setRowCount(0);
+        if (body==null) { table.addRow(new Object[]{"Setup", "Add or select a body"}); return; }
+        table.addRow(new Object[]{"Body",body.id()});
+        row("Mass",body.mass()); row("x",body.x()); row("y",body.y()); row("vx",body.vx()); row("vy",body.vy());
+        row("Speed",body.speed()); row("Kinetic energy",body.kineticEnergy());
+    }
     private void row(String name, double value) { table.addRow(new Object[]{name, String.format(java.util.Locale.ROOT,"%.8g", value)}); }
 }

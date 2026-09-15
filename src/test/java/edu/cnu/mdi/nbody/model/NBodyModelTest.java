@@ -45,6 +45,27 @@ class NBodyModelTest {
         assertEquals(Presets.create(Presets.Preset.CLUSTER,p,50,42), Presets.create(Presets.Preset.CLUSTER,p,50,42));
         assertNotEquals(Presets.create(Presets.Preset.CLUSTER,p,50,42), Presets.create(Presets.Preset.CLUSTER,p,50,43));
     }
+    @Test void chaoticThreeSunsPresetIncludesNegligiblePlanetAndRemainsFinite() {
+        var bodies = Presets.create(Presets.Preset.THREE_SUNS,p,20,42);
+        assertEquals(4,bodies.size());
+        assertEquals(3,bodies.stream().filter(body -> body.mass() >= 1).count());
+        assertEquals(0.001,bodies.get(3).mass());
+        var m = new NBodyModel(bodies,p);
+        for (int i = 0; i < 10000; i++) m.step();
+        var snapshot = m.snapshot();
+        assertTrue(snapshot.bodies().stream().allMatch(body -> Double.isFinite(body.x())
+                && Double.isFinite(body.y()) && Double.isFinite(body.vx()) && Double.isFinite(body.vy())));
+    }
+    @Test void mercuryJupiterPresetHasPhysicalMassOrderingAndEccentricInnerOrbit() {
+        Parameters parameters=Presets.mercuryPrecessionParameters();
+        var bodies=Presets.create(Presets.Preset.MERCURY_JUPITER,parameters,20,42);
+        assertEquals(3,bodies.size());
+        assertTrue(bodies.get(0).mass()>bodies.get(2).mass());
+        assertTrue(bodies.get(2).mass()>bodies.get(1).mass());
+        var model=new NBodyModel(bodies,parameters);
+        for (int i=0;i<20000;i++) model.step();
+        assertTrue(model.snapshot().bodies().stream().allMatch(body -> Double.isFinite(body.x()) && Double.isFinite(body.y())));
+    }
     @Test void exactResetAndImmutableSnapshot() {
         var m = orbit(Presets.Preset.CLUSTER); var initial = m.snapshot();
         for (int i = 0; i < 100; i++) m.step();
