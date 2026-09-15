@@ -1,6 +1,5 @@
-# Build output and temporary dependency checkouts
+# Build output 
 /target/
-/.build-deps/
 *.class
 
 # Local IDE and operating-system files

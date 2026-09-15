@@ -13,22 +13,17 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+
     steps:
       - name: Check out mdi-nbody
         uses: actions/checkout@v4
+
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-      # MDI is a separately maintained dependency, not part of this repository.
-      - name: Check out the compatible MDI revision
-        uses: actions/checkout@v4
-        with:
-          repository: heddle/mdi
-          ref: 3ecb594b493aedd45055901489d3814b4dc7bdd8
-          path: .build-deps/mdi
-      - name: Install MDI dependency
-        run: mvn --batch-mode --no-transfer-progress -f .build-deps/mdi/pom.xml -DskipTests -Dmaven.javadoc.skip=true install
+          cache: maven
+
       - name: Build and test mdi-nbody
-        run: mvn --batch-mode --no-transfer-progress verify
+        run: mvn --batch-mode --no-transfer-progress clean verify
