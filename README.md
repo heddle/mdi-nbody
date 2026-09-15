@@ -6,19 +6,20 @@ This application has its own repository; the [MDI framework](https://github.com/
 
 ## Build and run
 
-Requires JDK 17+, Maven, and a graphical desktop to run the application. Tests run headlessly. The dependency is `io.github.heddle:mdi:1.2.3-SNAPSHOT`; install it from the compatible framework revision before building. From the root of this repository, a fresh setup is:
+Requires JDK 17+, Maven, and a graphical desktop to run the application. Tests
+run headlessly. MDI 1.2.3 and the other dependencies are obtained automatically
+from Maven Central; a separate local installation of MDI is not required.
+
+From the root of this repository:
 
 ```sh
-git clone https://github.com/heddle/mdi.git .build-deps/mdi
-git -C .build-deps/mdi checkout 3ecb594b493aedd45055901489d3814b4dc7bdd8
-mvn -f .build-deps/mdi/pom.xml -DskipTests -Dmaven.javadoc.skip=true install
-mvn verify
+mvn clean verify
 mvn compile exec:java
 ```
 
-The temporary `.build-deps/` checkout is ignored by Git and is not included in this repository. If this exact MDI revision is already installed in your Maven cache, skip the clone and dependency installation steps. CI follows the same pinned-source setup.
-
-No external data or image assets are required. `mvn package` produces the application JAR; use Maven's launcher to supply its dependencies. The dependency version is configurable with `-Dmdi.version=...`, but must provide the current simulation and sPlot APIs.
+No external data or image assets are required. `mvn package` produces the
+application JAR; use Maven's launcher to supply its dependencies. The MDI
+version is centralized in the `mdi.version` property in `pom.xml`.
 
 ## Using the demonstration
 
