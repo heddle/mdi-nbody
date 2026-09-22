@@ -1,151 +1,375 @@
 package edu.cnu.mdi.nbody.view;
 
-import java.awt.*;
-import javax.swing.*;
+import java.awt.Component;
+import java.awt.FlowLayout;
+import java.awt.GridLayout;
+import java.text.ParseException;
+
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JSpinner;
+import javax.swing.SpinnerNumberModel;
 
 import edu.cnu.mdi.component.CommonBorder;
-import edu.cnu.mdi.nbody.model.*;
-import edu.cnu.mdi.sim.*;
+import edu.cnu.mdi.nbody.model.Parameters;
+import edu.cnu.mdi.nbody.model.Presets;
+import edu.cnu.mdi.nbody.sim.NBodySimulation;
+import edu.cnu.mdi.sim.ISimulationHost;
+import edu.cnu.mdi.sim.SimulationContext;
+import edu.cnu.mdi.sim.SimulationEngine;
+import edu.cnu.mdi.sim.SimulationListener;
+import edu.cnu.mdi.sim.SimulationState;
 import edu.cnu.mdi.sim.ui.ISimulationControlPanel;
 
-/** Uses MDI's host/listener binding contract and engine lifecycle. */
-public final class NBodyControls extends JPanel implements ISimulationControlPanel, SimulationListener {
-    private NBodyView host;
-    private SimulationEngine boundEngine;
-    private final JButton start = new JButton("Start"), pause = new JButton("Pause"), resume = new JButton("Resume"),
-            stop = new JButton("Stop"), reset = new JButton("Reset"), step = new JButton("Single Step"),
-            newModel = new JButton("New Model"), loadPreset = new JButton("Load Preset"), addBody = new JButton("Add Body"), open = new JButton("Open…"),
-            save = new JButton("Save…"), tools = new JButton("Setup Tools…");
-    private boolean selectingCustom,adjustingPhysics;
-    private final JComboBox<Presets.Preset> preset = new JComboBox<>(Presets.Preset.values());
-    private final JComboBox<Parameters.Integrator> integrator = new JComboBox<>(Parameters.Integrator.values());
-    private final JSpinner g = number(1,.001,100,.1), epsilon = number(.01,.000001,1,.001),
-            dt = number(.002,.000001,.1,.001), hz = new JSpinner(new SpinnerNumberModel(30,1,60,1)),
-            count = new JSpinner(new SpinnerNumberModel(20,2,50,1)),
-            seed = new JSpinner(new SpinnerNumberModel(42L,Long.MIN_VALUE,Long.MAX_VALUE,1L)),
-            trailLength = new JSpinner(new SpinnerNumberModel(500,0,5000,50));
-    private final JLabel status = new JLabel("Ready");
-    private final JCheckBox trails = new JCheckBox("Trails",true), velocities = new JCheckBox("Velocity vectors"), com = new JCheckBox("COM",true);
+/**
+ * Control panel for run lifecycle, model construction, physics, and display.
+ *
+ * <p>The panel follows MDI's host/listener binding contract. It rebinds whenever
+ * {@link NBodyView} replaces its engine and derives button enablement from the
+ * active engine state plus the view's setup state.</p>
+ */
+public final class NBodyControls extends JPanel
+        implements ISimulationControlPanel, SimulationListener {
 
+    /** View currently controlled by this panel. */
+    private NBodyView host;
+    /** Engine whose lifecycle events currently drive button state. */
+    private SimulationEngine boundEngine;
+
+    /** Starts a prepared model or initial run. */
+    private final JButton start = new JButton("Start");
+    /** Requests a running simulation to pause. */
+    private final JButton pause = new JButton("Pause");
+    /** Resumes a paused simulation. */
+    private final JButton resume = new JButton("Resume");
+    /** Terminates the current worker. */
+    private final JButton stop = new JButton("Stop");
+    /** Restores the current run's captured initial conditions. */
+    private final JButton reset = new JButton("Reset");
+    /** Advances one fixed integration step. */
+    private final JButton step = new JButton("Single Step");
+    /** Starts an empty custom setup. */
+    private final JButton newModel = new JButton("New Model");
+    /** Materializes the selected preset as an editable setup. */
+    private final JButton loadPreset = new JButton("Load Preset");
+    /** Arms click-to-place body creation. */
+    private final JButton addBody = new JButton("Add Body");
+    /** Opens a saved JSON setup. */
+    private final JButton open = new JButton("Open…");
+    /** Saves the current model as JSON. */
+    private final JButton save = new JButton("Save…");
+    /** Displays initial-condition transformation tools. */
+    private final JButton tools = new JButton("Setup Tools…");
+
+    /** Suppresses preset events while the view selects Custom programmatically. */
+    private boolean selectingCustom;
+    /** Suppresses physics events while controls are synchronized programmatically. */
+    private boolean adjustingPhysics;
+
+    /** Named initial-condition selector. */
+    private final JComboBox<Presets.Preset> preset = new JComboBox<>(Presets.Preset.values());
+    /** Fixed-step integration algorithm selector. */
+    private final JComboBox<Parameters.Integrator> integrator =
+            new JComboBox<>(Parameters.Integrator.values());
+
+    /** Dimensionless gravitational constant. */
+    private final JSpinner g = number(1, 0.001, 100, 0.1);
+    /** Plummer-softening length. */
+    private final JSpinner epsilon = number(0.01, 0.000001, 1, 0.001);
+    /** Fixed numerical timestep. */
+    private final JSpinner dt = number(0.002, 0.000001, 0.1, 0.001);
+    /** Maximum requested display refresh rate. */
+    private final JSpinner hz = new JSpinner(new SpinnerNumberModel(30, 1, 60, 1));
+    /** Number of bodies generated by the random-cluster preset. */
+    private final JSpinner count = new JSpinner(new SpinnerNumberModel(20, 2, 50, 1));
+    /** Seed used by the random-cluster preset. */
+    private final JSpinner seed = new JSpinner(
+            new SpinnerNumberModel(42L, Long.MIN_VALUE, Long.MAX_VALUE, 1L));
+    /** Number of display samples retained for trails. */
+    private final JSpinner trailLength = new JSpinner(
+            new SpinnerNumberModel(500, 0, 5000, 50));
+
+    /** Human-readable engine state. */
+    private final JLabel status = new JLabel("Ready");
+    /** Trail visibility toggle. */
+    private final JCheckBox trails = new JCheckBox("Trails", true);
+    /** Velocity-vector visibility toggle. */
+    private final JCheckBox velocities = new JCheckBox("Velocity vectors");
+    /** Center-of-mass visibility toggle. */
+    private final JCheckBox com = new JCheckBox("COM", true);
+
+    /** Creates and wires the complete control panel. */
     public NBodyControls() {
-        super(new GridLayout(0,1,0,2));
-        JPanel buttons = row();
-        for (JButton b : new JButton[]{start,pause,resume,stop,reset,step}) buttons.add(b);
-        buttons.add(status); add(buttons);
-        JPanel setupRow=row();
-        for (JButton b:new JButton[]{newModel,loadPreset,addBody,open,save,tools}) setupRow.add(b);
+        super(new GridLayout(0, 1, 0, 2));
+        buildLayout();
+        configureEditors();
+        wireActions();
+        setBorder(new CommonBorder("N-body Simulation Controls"));
+    }
+
+    private void buildLayout() {
+        JPanel runRow = row();
+        addAll(runRow, start, pause, resume, stop, reset, step, status);
+        add(runRow);
+
+        JPanel setupRow = row();
+        addAll(setupRow, newModel, loadPreset, addBody, open, save, tools);
         add(setupRow);
-        JPanel physics = row();
-        field(physics,"Preset",preset); field(physics,"Integrator",integrator); add(physics);
-        JPanel numbers = row();
-        field(numbers,"G",g); field(numbers,"ε",epsilon); field(numbers,"dt",dt);
-        field(numbers,"Cluster N",count); field(numbers,"Seed",seed); add(numbers);
-        JPanel display = row();
-        field(display,"Updates/s",hz); field(display,"Trail samples",trailLength);
-        display.add(trails); display.add(velocities); display.add(com); add(display);
-        add(new JLabel("Reset restores the current run at t = 0. Load Preset prepares the selected settings without running."));
-        epsilon.setEditor(new JSpinner.NumberEditor(epsilon,"0.000000"));
-        dt.setEditor(new JSpinner.NumberEditor(dt,"0.000000"));
-        ((JSpinner.DefaultEditor)seed.getEditor()).getTextField().setColumns(8);
-        start.addActionListener(e -> host.startOrRun());
-        pause.addActionListener(e -> host.pauseSimulation());
-        resume.addActionListener(e -> host.resumeSimulation());
-        stop.addActionListener(e -> host.stopSimulation());
-        step.addActionListener(e -> { step.setEnabled(false); start.setEnabled(false); resume.setEnabled(false); host.singleStep(); });
-        reset.addActionListener(e -> host.restoreCurrentModel());
-        loadPreset.addActionListener(e -> loadPreset());
-        addBody.addActionListener(e -> host.addBody());
-        newModel.addActionListener(e -> host.newModel());
-        open.addActionListener(e -> host.openModel()); save.addActionListener(e -> host.saveModel());
-        tools.addActionListener(e -> host.showSetupTools());
-        preset.addActionListener(e -> {
-            if (selectingCustom) return;
-            if (host != null) host.invalidateSpecialExperiment();
-            if (preset.getSelectedItem()==Presets.Preset.MERCURY_JUPITER) {
-                Parameters recommended=Presets.mercuryPrecessionParameters();
-                setParameters(recommended);
+
+        JPanel selectionRow = row();
+        field(selectionRow, "Preset", preset);
+        field(selectionRow, "Integrator", integrator);
+        add(selectionRow);
+
+        JPanel physicsRow = row();
+        field(physicsRow, "G", g);
+        field(physicsRow, "ε", epsilon);
+        field(physicsRow, "dt", dt);
+        field(physicsRow, "Cluster N", count);
+        field(physicsRow, "Seed", seed);
+        add(physicsRow);
+
+        JPanel displayRow = row();
+        field(displayRow, "Updates/s", hz);
+        field(displayRow, "Trail samples", trailLength);
+        addAll(displayRow, trails, velocities, com);
+        add(displayRow);
+
+        add(new JLabel("Reset restores the current run at t = 0. "
+                + "Load Preset prepares the selected settings without running."));
+    }
+
+    private void configureEditors() {
+        epsilon.setEditor(new JSpinner.NumberEditor(epsilon, "0.000000"));
+        dt.setEditor(new JSpinner.NumberEditor(dt, "0.000000"));
+        ((JSpinner.DefaultEditor) seed.getEditor()).getTextField().setColumns(8);
+    }
+
+    private void wireActions() {
+        start.addActionListener(event -> host.startOrRun());
+        pause.addActionListener(event -> host.pauseSimulation());
+        resume.addActionListener(event -> host.resumeSimulation());
+        stop.addActionListener(event -> host.stopSimulation());
+        reset.addActionListener(event -> host.restoreCurrentModel());
+        step.addActionListener(event -> requestSingleStep());
+
+        newModel.addActionListener(event -> host.newModel());
+        loadPreset.addActionListener(event -> loadPreset());
+        addBody.addActionListener(event -> host.addBody());
+        open.addActionListener(event -> host.openModel());
+        save.addActionListener(event -> host.saveModel());
+        tools.addActionListener(event -> host.showSetupTools());
+
+        preset.addActionListener(event -> presetChanged());
+        integrator.addActionListener(event -> physicsChanged());
+        for (JSpinner spinner : new JSpinner[] {g, epsilon, dt}) {
+            spinner.addChangeListener(event -> physicsChanged());
+        }
+        for (JSpinner spinner : new JSpinner[] {count, seed}) {
+            spinner.addChangeListener(event -> {
+                if (host != null) {
+                    host.invalidateSpecialExperiment();
+                }
+            });
+        }
+
+        hz.addChangeListener(event -> {
+            if (host != null) {
+                host.setUpdateHz(((Number) hz.getValue()).intValue());
             }
         });
-        integrator.addActionListener(e -> physicsChanged());
-        for (JSpinner spinner:new JSpinner[]{g,epsilon,dt})
-            spinner.addChangeListener(e -> physicsChanged());
-        for (JSpinner spinner:new JSpinner[]{count,seed})
-            spinner.addChangeListener(e -> { if (host != null) host.invalidateSpecialExperiment(); });
-        hz.addChangeListener(e -> { if (host != null) host.setUpdateHz(((Number)hz.getValue()).intValue()); });
-        trailLength.addChangeListener(e -> displayChanged());
-        for (JCheckBox box : new JCheckBox[]{trails,velocities,com}) box.addActionListener(e -> displayChanged());
-        this.setBorder(new CommonBorder("N-body Simulation Controls"));
+        trailLength.addChangeListener(event -> displayChanged());
+        for (JCheckBox box : new JCheckBox[] {trails, velocities, com}) {
+            box.addActionListener(event -> displayChanged());
+        }
     }
-    private static JSpinner number(double value,double min,double max,double step) {
-        return new JSpinner(new SpinnerNumberModel(value,min,max,step));
+
+    private void requestSingleStep() {
+        // Disable immediately so a rapid double-click cannot queue two steps
+        // before the engine's pause callback updates the panel.
+        step.setEnabled(false);
+        start.setEnabled(false);
+        resume.setEnabled(false);
+        host.singleStep();
     }
-    private static JPanel row() { return new JPanel(new FlowLayout(FlowLayout.LEFT,6,1)); }
-    private static void field(JPanel row, String label, JComponent component) { row.add(new JLabel(label)); row.add(component); }
+
+    private void presetChanged() {
+        if (selectingCustom) {
+            return;
+        }
+        if (host != null) {
+            host.invalidateSpecialExperiment();
+        }
+        if (preset.getSelectedItem() == Presets.Preset.MERCURY_JUPITER) {
+            setParameters(Presets.mercuryPrecessionParameters());
+        }
+        applyStateIfBound();
+    }
+
+    private static JSpinner number(double value, double min, double max, double step) {
+        return new JSpinner(new SpinnerNumberModel(value, min, max, step));
+    }
+
+    private static JPanel row() {
+        return new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 1));
+    }
+
+    private static void field(JPanel row, String label, JComponent component) {
+        row.add(new JLabel(label));
+        row.add(component);
+    }
+
+    private static void addAll(JPanel row, Component... components) {
+        for (Component component : components) {
+            row.add(component);
+        }
+    }
+
     private void displayChanged() {
-        if (host != null) host.setDisplay(trails.isSelected(),velocities.isSelected(),com.isSelected(), ((Number)trailLength.getValue()).intValue());
+        if (host != null) {
+            host.setDisplay(trails.isSelected(), velocities.isSelected(), com.isSelected(),
+                    ((Number) trailLength.getValue()).intValue());
+        }
     }
+
     private void loadPreset() {
         try {
-            for (JSpinner spinner : new JSpinner[]{g,epsilon,dt,count,seed,hz,trailLength}) spinner.commitEdit();
-            Parameters p = new Parameters(((Number)g.getValue()).doubleValue(), ((Number)epsilon.getValue()).doubleValue(),
-                    ((Number)dt.getValue()).doubleValue(), (Parameters.Integrator)integrator.getSelectedItem());
-            Presets.Preset selected=(Presets.Preset)preset.getSelectedItem();
-            if (selected==Presets.Preset.CUSTOM) throw new IllegalArgumentException("Choose a named preset to load");
-            host.loadPreset(selected,Presets.create(selected,p,((Number)count.getValue()).intValue(),
-                    ((Number)seed.getValue()).longValue()),p);
-        } catch (java.text.ParseException | IllegalArgumentException ex) {
-            JOptionPane.showMessageDialog(this, "Enter valid numeric values: " + ex.getMessage(), "Invalid settings", JOptionPane.ERROR_MESSAGE);
+            commitEditors(g, epsilon, dt, count, seed, hz, trailLength);
+            Parameters parameters = parameters();
+            Presets.Preset selected = (Presets.Preset) preset.getSelectedItem();
+            if (selected == Presets.Preset.CUSTOM) {
+                throw new IllegalArgumentException("Choose a named preset to load");
+            }
+            host.loadPreset(selected,
+                    Presets.create(selected, parameters,
+                            ((Number) count.getValue()).intValue(),
+                            ((Number) seed.getValue()).longValue()),
+                    parameters);
+        } catch (ParseException | IllegalArgumentException ex) {
+            JOptionPane.showMessageDialog(this,
+                    "Enter valid numeric values: " + ex.getMessage(),
+                    "Invalid settings", JOptionPane.ERROR_MESSAGE);
         }
     }
+
     Parameters parameters() {
         try {
-            for (JSpinner spinner:new JSpinner[]{g,epsilon,dt}) spinner.commitEdit();
-        } catch (java.text.ParseException ex) {
-            throw new IllegalArgumentException("Enter valid numeric physics settings",ex);
+            commitEditors(g, epsilon, dt);
+        } catch (ParseException ex) {
+            throw new IllegalArgumentException("Enter valid numeric physics settings", ex);
         }
-        return new Parameters(((Number)g.getValue()).doubleValue(),((Number)epsilon.getValue()).doubleValue(),
-                ((Number)dt.getValue()).doubleValue(),(Parameters.Integrator)integrator.getSelectedItem());
+        return new Parameters(
+                ((Number) g.getValue()).doubleValue(),
+                ((Number) epsilon.getValue()).doubleValue(),
+                ((Number) dt.getValue()).doubleValue(),
+                (Parameters.Integrator) integrator.getSelectedItem());
     }
-    void setParameters(Parameters p) {
-        adjustingPhysics=true;
-        try { g.setValue(p.g()); epsilon.setValue(p.epsilon()); dt.setValue(p.dt()); integrator.setSelectedItem(p.integrator()); }
-        finally { adjustingPhysics=false; }
+
+    private static void commitEditors(JSpinner... spinners) throws ParseException {
+        for (JSpinner spinner : spinners) {
+            spinner.commitEdit();
+        }
     }
+
+    void setParameters(Parameters parameters) {
+        adjustingPhysics = true;
+        try {
+            g.setValue(parameters.g());
+            epsilon.setValue(parameters.epsilon());
+            dt.setValue(parameters.dt());
+            integrator.setSelectedItem(parameters.integrator());
+        } finally {
+            adjustingPhysics = false;
+        }
+    }
+
     private void physicsChanged() {
-        if (!adjustingPhysics && host!=null) host.physicsChanged();
+        if (!adjustingPhysics && host != null) {
+            host.physicsChanged();
+        }
     }
-    void markCustom() { selectingCustom=true; preset.setSelectedItem(Presets.Preset.CUSTOM); selectingCustom=false; }
-    void setupChanged() { if (boundEngine!=null) applyState(); }
-    @Override public void bind(ISimulationHost host) {
-        unbind(); this.host = (NBodyView)host;
-        boundEngine = host.getSimulationEngine(); boundEngine.addListener(this); applyState();
+
+    void markCustom() {
+        selectingCustom = true;
+        try {
+            preset.setSelectedItem(Presets.Preset.CUSTOM);
+        } finally {
+            selectingCustom = false;
+        }
     }
-    @Override public void unbind() {
-        if (boundEngine != null) boundEngine.removeListener(this);
-        boundEngine = null; host = null;
+
+    void setupChanged() {
+        applyStateIfBound();
     }
-    @Override public void onStateChange(SimulationContext ctx, SimulationState from, SimulationState to, String reason) {
-        if (boundEngine != null && ctx == boundEngine.getContext()) applyState();
+
+    private void applyStateIfBound() {
+        if (boundEngine != null) {
+            applyState();
+        }
     }
-    @Override public void onFail(SimulationContext ctx, Throwable error) { status.setText("Failed: " + error.getMessage()); }
+
+    @Override
+    public void bind(ISimulationHost simulationHost) {
+        unbind();
+        host = (NBodyView) simulationHost;
+        boundEngine = simulationHost.getSimulationEngine();
+        boundEngine.addListener(this);
+        applyState();
+    }
+
+    @Override
+    public void unbind() {
+        if (boundEngine != null) {
+            boundEngine.removeListener(this);
+        }
+        boundEngine = null;
+        host = null;
+    }
+
+    @Override
+    public void onStateChange(SimulationContext context, SimulationState from,
+            SimulationState to, String reason) {
+        if (boundEngine != null && context == boundEngine.getContext()) {
+            applyState();
+        }
+    }
+
+    @Override
+    public void onFail(SimulationContext context, Throwable error) {
+        status.setText("Failed: " + error.getMessage());
+    }
+
     private void applyState() {
-        SimulationState s = boundEngine.getState();
-        boolean activeIdle = s == SimulationState.READY || s == SimulationState.PAUSED;
-        boolean idle = activeIdle || s == SimulationState.TERMINATED;
-        boolean initial = ((edu.cnu.mdi.nbody.sim.NBodySimulation)boundEngine.getSimulation()).snapshot().step() == 0;
-        boolean editing=host!=null && host.isEditingSetup();
-        boolean physicsEditable=idle;
-        g.setEnabled(physicsEditable); epsilon.setEnabled(physicsEditable); dt.setEnabled(physicsEditable);
-        integrator.setEnabled(physicsEditable);
-        start.setEnabled((editing && idle && host.canRunSetup()) || (activeIdle && !editing && initial));
-        resume.setEnabled(!editing && s == SimulationState.PAUSED && !initial);
-        pause.setEnabled(!editing && s == SimulationState.RUNNING); step.setEnabled(activeIdle && !editing);
-        stop.setEnabled(s != SimulationState.TERMINATED && s != SimulationState.TERMINATING);
+        SimulationState state = boundEngine.getState();
+        boolean activeIdle = state == SimulationState.READY || state == SimulationState.PAUSED;
+        boolean idle = activeIdle || state == SimulationState.TERMINATED;
+        boolean initial = ((NBodySimulation) boundEngine.getSimulation()).snapshot().step() == 0;
+        boolean editing = host != null && host.isEditingSetup();
+
+        g.setEnabled(idle);
+        epsilon.setEnabled(idle);
+        dt.setEnabled(idle);
+        integrator.setEnabled(idle);
+
+        start.setEnabled((editing && idle && host.canRunSetup())
+                || (activeIdle && !editing && initial));
+        resume.setEnabled(!editing && state == SimulationState.PAUSED && !initial);
+        pause.setEnabled(!editing && state == SimulationState.RUNNING);
+        step.setEnabled(activeIdle && !editing);
+        stop.setEnabled(state != SimulationState.TERMINATED
+                && state != SimulationState.TERMINATING);
         reset.setEnabled(idle);
         newModel.setEnabled(idle);
-        loadPreset.setEnabled(idle && preset.getSelectedItem()!=Presets.Preset.CUSTOM);
+        loadPreset.setEnabled(idle && preset.getSelectedItem() != Presets.Preset.CUSTOM);
         addBody.setEnabled(idle);
-        open.setEnabled(idle); save.setEnabled(idle); tools.setEnabled(idle && (editing || initial));
-        status.setText(s.toString());
+        open.setEnabled(idle);
+        save.setEnabled(idle);
+        tools.setEnabled(idle && (editing || initial));
+        status.setText(state.toString());
     }
 }
