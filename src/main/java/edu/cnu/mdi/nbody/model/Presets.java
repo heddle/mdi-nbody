@@ -26,6 +26,9 @@ public final class Presets {
         /** Sun, Mercury, and Jupiter model used by the perihelion diagnostic. */
         MERCURY_JUPITER("Sun, Mercury + Jupiter"),
 
+        /** Sun, Jupiter, and a negligible spacecraft demonstrating a gravity assist. */
+        SLINGSHOT("Jupiter slingshot"),
+
         /** Equal-mass binary with a distant low-mass third body. */
         BINARY("Binary + low-mass body"),
 
@@ -58,6 +61,16 @@ public final class Presets {
     }
 
     /**
+     * Returns parameters that resolve the close spacecraft-Jupiter encounter
+     * without making the demonstration unnecessarily slow.
+     *
+     * @return recommended gravitational-assist parameters
+     */
+    public static Parameters slingshotParameters() {
+        return new Parameters(1, 0.0001, 0.00002, Parameters.Integrator.VELOCITY_VERLET);
+    }
+
+    /**
      * Creates body states for a named preset.
      *
      * @param preset preset to create
@@ -77,6 +90,7 @@ public final class Presets {
             case CLUSTER -> randomCluster(count, seed, velocityScale);
             case THREE_SUNS -> threeSuns(parameters);
             case MERCURY_JUPITER -> mercuryAndJupiter(parameters);
+            case SLINGSHOT -> slingshot(parameters);
             case CIRCULAR, ECCENTRIC, BINARY -> binaryFamily(preset, parameters);
             case CUSTOM -> throw new AssertionError("Handled above");
         };
@@ -139,6 +153,24 @@ public final class Presets {
                 new Body(0, 1, 0, 0, 0, 0),
                 new Body(1, mercuryMass, mercuryPerihelion, 0, 0, mercurySpeed),
                 new Body(2, jupiterMass, jupiterRadius, 0, 0, jupiterSpeed)));
+    }
+
+    private static List<Body> slingshot(Parameters parameters) {
+        double jupiterMass = 9.545e-4;
+        double jupiterRadius = 5.203;
+        double jupiterSpeed = Math.sqrt(
+                parameters.g() * (1 + jupiterMass) / jupiterRadius);
+
+        // The spacecraft begins on a bound, nearly radial outbound trajectory.
+        // Its close pass behind the moving planet raises its heliocentric
+        // specific energy above zero, converting that trajectory into escape.
+        // The tiny craft mass makes this effectively a restricted three-body
+        // problem. These values are a pedagogical construction, not mission data.
+        return centered(List.of(
+                new Body(0, 1, 0, 0, 0, 0),
+                new Body(1, jupiterMass, jupiterRadius, 0, 0, jupiterSpeed),
+                new Body(2, 1e-10, 4.703, -0.010144869,
+                        0.35, jupiterSpeed)));
     }
 
     private static List<Body> binaryFamily(Preset preset, Parameters parameters) {

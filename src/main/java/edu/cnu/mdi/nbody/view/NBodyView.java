@@ -91,6 +91,10 @@ public final class NBodyView extends SimulationView implements ItemChangeListene
     private boolean perihelionExperiment;
     /** Non-modal special-purpose perihelion diagnostic. */
     private PerihelionPlotDialog perihelionDialog;
+    /** True only while the pristine Jupiter-slingshot experiment is active. */
+    private boolean slingshotExperiment;
+    /** Non-modal special-purpose gravitational-assist diagnostic. */
+    private SlingshotPlotDialog slingshotDialog;
     /** Mutable setup currently represented by the canvas. */
     private NBodySetup setup;
     /** Exact initial conditions captured when the current run began. */
@@ -226,7 +230,8 @@ public final class NBodyView extends SimulationView implements ItemChangeListene
             }
             bodyItems.clear();
             for (Body body : bodies) {
-                BodyItem item = new BodyItem(getDefaultLayer(), body, this::editBody);
+                BodyItem item = new BodyItem(
+                        getDefaultLayer(), body, bodyLabel(body.id()), this::editBody);
                 item.setShowVelocity(velocities);
                 bodyItems.add(item);
             }
@@ -273,8 +278,7 @@ public final class NBodyView extends SimulationView implements ItemChangeListene
     public void resetPreset(Presets.Preset preset, List<Body> initial, Parameters parameters) {
         invalidateSpecialExperiment();
         setupPreset = preset;
-        perihelionExperiment = preset == Presets.Preset.MERCURY_JUPITER
-                && parameters.equals(Presets.mercuryPrecessionParameters());
+        enableSpecialExperiment(preset, parameters);
         reset(initial, parameters);
     }
 
@@ -284,8 +288,7 @@ public final class NBodyView extends SimulationView implements ItemChangeListene
             return;
         }
         invalidateSpecialExperiment();
-        perihelionExperiment = setupPreset == Presets.Preset.MERCURY_JUPITER
-                && initialSetup.parameters().equals(Presets.mercuryPrecessionParameters());
+        enableSpecialExperiment(setupPreset, initialSetup.parameters());
         controls().setParameters(initialSetup.parameters());
         reset(initialSetup.bodies(), initialSetup.parameters());
     }
@@ -320,10 +323,22 @@ public final class NBodyView extends SimulationView implements ItemChangeListene
     /** Closes and forgets diagnostics that apply only to an unmodified preset. */
     public void invalidateSpecialExperiment() {
         perihelionExperiment = false;
+        slingshotExperiment = false;
         if (perihelionDialog != null) {
             perihelionDialog.dispose();
             perihelionDialog = null;
         }
+        if (slingshotDialog != null) {
+            slingshotDialog.dispose();
+            slingshotDialog = null;
+        }
+    }
+
+    private void enableSpecialExperiment(Presets.Preset preset, Parameters parameters) {
+        perihelionExperiment = preset == Presets.Preset.MERCURY_JUPITER
+                && parameters.equals(Presets.mercuryPrecessionParameters());
+        slingshotExperiment = preset == Presets.Preset.SLINGSHOT
+                && parameters.equals(Presets.slingshotParameters());
     }
     /** Advances a ready or paused run by exactly one integration step. */
     public void singleStep() {
@@ -431,8 +446,7 @@ public final class NBodyView extends SimulationView implements ItemChangeListene
             return;
         }
         invalidateSpecialExperiment();
-        perihelionExperiment = setupPreset == Presets.Preset.MERCURY_JUPITER
-                && setup.parameters().equals(Presets.mercuryPrecessionParameters());
+        enableSpecialExperiment(setupPreset, setup.parameters());
         runAfterReset = true;
         reset(setup.bodies(), setup.parameters());
     }
@@ -580,6 +594,7 @@ public final class NBodyView extends SimulationView implements ItemChangeListene
     private void enterSetup() {
         invalidateSpecialExperiment();
         setupPreset = Presets.Preset.CUSTOM;
+        bodyItems.forEach(item -> item.setLabel(null));
         if (!editingSetup) {
             editingSetup = true;
             setup = new NBodySetup(editableBodies(), setupParameters);
@@ -589,6 +604,25 @@ public final class NBodyView extends SimulationView implements ItemChangeListene
         }
         controls().markCustom();
         controls().setupChanged();
+    }
+
+    private String bodyLabel(int id) {
+        return switch (setupPreset) {
+            case SLINGSHOT -> switch (id) {
+                case 0 -> "Sun";
+                case 1 -> "Jupiter";
+                case 2 -> "Spacecraft";
+                default -> null;
+            };
+            case MERCURY_JUPITER -> switch (id) {
+                case 0 -> "Sun";
+                case 1 -> "Mercury";
+                case 2 -> "Jupiter";
+                default -> null;
+            };
+            case THREE_SUNS -> id == 3 ? "Planet" : "Sun " + (id + 1);
+            default -> null;
+        };
     }
 
     private void selectBody(int id) {
@@ -690,6 +724,14 @@ public final class NBodyView extends SimulationView implements ItemChangeListene
                 perihelionDialog.setVisible(true);
             }
             perihelionDialog.accept(snapshot);
+        }
+        if (slingshotExperiment && snapshot.step() > 0) {
+            if (slingshotDialog == null || !slingshotDialog.isDisplayable()) {
+                slingshotDialog = new SlingshotPlotDialog(
+                        SwingUtilities.getWindowAncestor(this), simulation().parameters());
+                slingshotDialog.setVisible(true);
+            }
+            slingshotDialog.accept(snapshot);
         }
     }
 

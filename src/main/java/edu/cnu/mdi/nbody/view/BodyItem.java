@@ -44,15 +44,17 @@ final class BodyItem extends PointItem {
 
     private Body body;
     private final Editor editor;
+    private String label;
     private boolean showVelocity;
     private boolean editable;
     private boolean editingVelocity;
 
-    BodyItem(Layer layer, Body body, Editor editor) {
+    BodyItem(Layer layer, Body body, String label, Editor editor) {
         super(layer, new Point2D.Double(body.x(), body.y()));
         this.body = body;
+        this.label = label;
         this.editor = editor;
-        setDisplayName("Body " + body.id());
+        setDisplayName(label == null ? "Body " + body.id() : label);
         setDraggable(false);
         setDeletable(false);
         setResizable(false);
@@ -82,6 +84,12 @@ final class BodyItem extends PointItem {
         setDirty(true);
     }
 
+    void setLabel(String label) {
+        this.label = label;
+        setDisplayName(label == null ? "Body " + body.id() : label);
+        setDirty(true);
+    }
+
     void setEditable(boolean editable, boolean deletable) {
         this.editable = editable;
         // Engine replacement can briefly traverse NEW/INITIALIZING. Reassert the
@@ -107,6 +115,10 @@ final class BodyItem extends PointItem {
         int extent = radius() + 4;
         Rectangle bounds = new Rectangle(
                 center.x - extent, center.y - extent, 2 * extent, 2 * extent);
+        if (label != null) {
+            bounds.add(center.x - 40, center.y + radius() + 16);
+            bounds.add(center.x + 40, center.y + radius() + 16);
+        }
         if ((showVelocity || editable && isSelected()) && hasVelocityHandle(container)) {
             bounds.add(velocityPoint(container));
         }
@@ -139,6 +151,13 @@ final class BodyItem extends PointItem {
             graphics.fillOval(center.x - radius, center.y - radius, 2 * radius, 2 * radius);
             graphics.setColor(color.darker());
             graphics.drawOval(center.x - radius, center.y - radius, 2 * radius, 2 * radius);
+
+            if (label != null) {
+                int labelWidth = graphics.getFontMetrics().stringWidth(label);
+                graphics.setColor(Color.DARK_GRAY);
+                graphics.drawString(label,
+                        center.x - labelWidth / 2, center.y + radius + 13);
+            }
 
             if (showVelocity || editable && isSelected()) {
                 drawVelocity(graphics, container, center);
@@ -222,7 +241,8 @@ final class BodyItem extends PointItem {
             Point2D.Double worldPoint, List<String> feedback) {
         Body current = body();
         feedback.add(String.format(Locale.ROOT,
-                "$cyan$Body %d  m=%.6g", current.id(), current.mass()));
+                "$cyan$%s  m=%.6g",
+                label == null ? "Body " + current.id() : label, current.mass()));
         feedback.add(String.format(Locale.ROOT,
                 "x=%.6g  y=%.6g  vx=%.6g  vy=%.6g",
                 current.x(), current.y(), current.vx(), current.vy()));

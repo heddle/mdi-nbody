@@ -207,6 +207,8 @@ public final class NBodyControls extends JPanel
         }
         if (preset.getSelectedItem() == Presets.Preset.MERCURY_JUPITER) {
             setParameters(Presets.mercuryPrecessionParameters());
+        } else if (preset.getSelectedItem() == Presets.Preset.SLINGSHOT) {
+            setParameters(Presets.slingshotParameters());
         }
         applyStateIfBound();
     }

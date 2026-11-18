@@ -17,7 +17,15 @@ class NBodySetupIOTest {
         NBodySetup restored=NBodySetupIO.read(file);
         assertEquals(parameters,restored.parameters());
         assertEquals(original.bodies(),restored.bodies());
-        assertTrue(java.nio.file.Files.readString(file).contains("\"version\" : 1"));
+        String json = java.nio.file.Files.readString(file);
+
+        assertEquals(
+            1,
+            com.google.gson.JsonParser.parseString(json)
+                .getAsJsonObject()
+                .get("version")
+                .getAsInt()
+        );
     }
 
     @Test void rejectsUnsupportedAndIncompleteDocuments() throws Exception {

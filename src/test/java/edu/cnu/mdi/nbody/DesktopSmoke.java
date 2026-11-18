@@ -122,6 +122,18 @@ public final class DesktopSmoke {
             SwingUtilities.invokeAndWait(v::invalidateSpecialExperiment);
             await(() -> java.util.Arrays.stream(Window.getWindows()).noneMatch(window -> window.isVisible()
                     && window instanceof Dialog dialog && "Mercury perihelion precession".equals(dialog.getTitle())));
+            SwingUtilities.invokeAndWait(v::pauseSimulation);
+            await(() -> v.getSimulationState() == SimulationState.PAUSED);
+            Parameters slingshot = Presets.slingshotParameters();
+            SwingUtilities.invokeAndWait(() -> v.loadPreset(Presets.Preset.SLINGSHOT,
+                    Presets.create(Presets.Preset.SLINGSHOT, slingshot, 20, 42), slingshot));
+            SwingUtilities.invokeAndWait(v::startOrRun);
+            await(() -> ((NBodySimulation)v.getSimulationEngine().getSimulation()).snapshot().step()>10
+                    && java.util.Arrays.stream(Window.getWindows()).anyMatch(window -> window.isVisible()
+                    && window instanceof Dialog dialog && "Jupiter gravitational assist".equals(dialog.getTitle())));
+            SwingUtilities.invokeAndWait(v::invalidateSpecialExperiment);
+            await(() -> java.util.Arrays.stream(Window.getWindows()).noneMatch(window -> window.isVisible()
+                    && window instanceof Dialog dialog && "Jupiter gravitational assist".equals(dialog.getTitle())));
             SwingUtilities.invokeAndWait(() -> { v.setDisplay(true,true,true,100); v.runSimulation(); });
             Thread.sleep(1200);
             SwingUtilities.invokeAndWait(v::pauseSimulation);

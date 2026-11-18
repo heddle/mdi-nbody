@@ -66,6 +66,45 @@ class NBodyModelTest {
         for (int i=0;i<20000;i++) model.step();
         assertTrue(model.snapshot().bodies().stream().allMatch(body -> Double.isFinite(body.x()) && Double.isFinite(body.y())));
     }
+    @Test void slingshotPresetProducesResolvedHeliocentricEnergyGain() {
+        Parameters parameters = Presets.slingshotParameters();
+        var model = new NBodyModel(
+                Presets.create(Presets.Preset.SLINGSHOT, parameters, 20, 42), parameters);
+        Snapshot initial = model.snapshot();
+        double initialEnergy = spacecraftSpecificEnergy(initial, parameters);
+        assertTrue(initialEnergy < 0,
+                "spacecraft should begin on a bound heliocentric trajectory");
+        double closestApproach = Double.POSITIVE_INFINITY;
+
+        for (int step = 0; step < 150_000; step++) {
+            model.step();
+            if (step % 50 == 0) {
+                Snapshot snapshot = model.snapshot();
+                Body planet = snapshot.bodies().get(1);
+                Body spacecraft = snapshot.bodies().get(2);
+                closestApproach = Math.min(closestApproach,
+                        Math.hypot(spacecraft.x() - planet.x(), spacecraft.y() - planet.y()));
+            }
+        }
+
+        assertTrue(closestApproach > 0.003 && closestApproach < 0.008,
+                "encounter should be close but remain well outside the softening length");
+        assertTrue(spacecraftSpecificEnergy(model.snapshot(), parameters) > 0.05,
+                "Jupiter encounter should convert the bound trajectory into escape");
+    }
+
+    private static double spacecraftSpecificEnergy(Snapshot snapshot, Parameters parameters) {
+        Body sun = snapshot.bodies().get(0);
+        Body spacecraft = snapshot.bodies().get(2);
+        double dx = spacecraft.x() - sun.x();
+        double dy = spacecraft.y() - sun.y();
+        double dvx = spacecraft.vx() - sun.vx();
+        double dvy = spacecraft.vy() - sun.vy();
+        return 0.5 * (dvx * dvx + dvy * dvy)
+                - parameters.g() * sun.mass()
+                        / Math.sqrt(dx * dx + dy * dy
+                                + parameters.epsilon() * parameters.epsilon());
+    }
     @Test void exactResetAndImmutableSnapshot() {
         var m = orbit(Presets.Preset.CLUSTER); var initial = m.snapshot();
         for (int i = 0; i < 100; i++) m.step();

@@ -1,14 +1,18 @@
 package edu.cnu.mdi.nbody.model;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import com.fasterxml.jackson.databind.ObjectMapper;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 /** Reads and writes versioned JSON documents containing editable N-body setups. */
 public final class NBodySetupIO {
     private static final int FORMAT_VERSION = 1;
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     private NBodySetupIO() { }
 
@@ -21,7 +25,7 @@ public final class NBodySetupIO {
      */
     public static void write(Path path, NBodySetup setup) throws IOException {
         Document document = new Document(FORMAT_VERSION, setup.parameters(), setup.bodies());
-        MAPPER.writerWithDefaultPrettyPrinter().writeValue(path.toFile(), document);
+        Files.writeString(path, GSON.toJson(document), StandardCharsets.UTF_8);
     }
 
     /**
@@ -33,7 +37,12 @@ public final class NBodySetupIO {
      *         or does not describe a valid setup
      */
     public static NBodySetup read(Path path) throws IOException {
-        Document document = MAPPER.readValue(path.toFile(), Document.class);
+        final Document document;
+        try {
+            document = GSON.fromJson(Files.readString(path, StandardCharsets.UTF_8), Document.class);
+        } catch (RuntimeException ex) {
+            throw new IOException("Invalid N-body model", ex);
+        }
         if (document == null) {
             throw new IOException("Empty N-body model");
         }
@@ -44,7 +53,7 @@ public final class NBodySetupIO {
             if (document.bodies() == null || document.parameters() == null) {
                 throw new IllegalArgumentException("Missing bodies or parameters");
             }
-            return new NBodySetup(document.bodies(),document.parameters());
+            return new NBodySetup(document.bodies(), document.parameters());
         } catch (RuntimeException ex) {
             throw new IOException("Invalid N-body model", ex);
         }
