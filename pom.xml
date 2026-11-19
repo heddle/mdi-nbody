@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>edu.cnu</groupId>
 	<artifactId>mdi-nbody</artifactId>
-	<version>1.0.3</version>
+	<version>1.0.4-SNAPSHOT</version>
 	<name>MDI N-body</name>
 	<description>A two-dimensional Newtonian N-body simulation demonstrating the
 		MDI framework.</description>
