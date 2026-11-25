@@ -16,10 +16,10 @@ jobs:
 
     steps:
       - name: Check out mdi-nbody
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -28,7 +28,7 @@ jobs:
       # Temporary: remove these two steps, and set mdi.version to the release,
       # once MDI 1.2.5 is on Maven Central.
       - name: Check out the MDI snapshot
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: heddle/mdi
           ref: 970ab0b4c53295d6d50c675ace75de06147b5294
