@@ -7,18 +7,8 @@ This application has its own repository; the [MDI framework](https://github.com/
 ## Build and run
 
 Requires JDK 17+, Maven, and a graphical desktop to run the application. Tests
-run headlessly.
-
-This development version needs MDI 1.2.5-SNAPSHOT, which is not on Maven
-Central. Install it once from the MDI framework's `develop` branch:
-
-```sh
-git clone --branch develop https://github.com/heddle/mdi.git
-mvn -f mdi/pom.xml -DskipTests install
-```
-
-The released versions of this demonstration use a released MDI and need no
-separate installation.
+run headlessly. MDI 1.2.5 and the other dependencies are obtained automatically
+from Maven Central; a separate local installation of MDI is not required.
 
 From the root of this repository:
 

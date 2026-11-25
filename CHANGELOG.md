@@ -10,8 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
-- Requires MDI 1.2.5-SNAPSHOT. CI builds it from a pinned MDI revision until
-  1.2.5 is released.
+- Requires MDI 1.2.5, resolved from Maven Central.
 
 ### Fixed
 

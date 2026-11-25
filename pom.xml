@@ -26,7 +26,7 @@
 		<maven.compiler.source>17</maven.compiler.source>
 		<maven.compiler.target>17</maven.compiler.target>
 		<exec.mainClass>edu.cnu.mdi.nbody.NBodyApp</exec.mainClass>
-		<mdi.version>1.2.5-SNAPSHOT</mdi.version>
+		<mdi.version>1.2.5</mdi.version>
 	</properties>
 	<dependencies>
 		<dependency>
