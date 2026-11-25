@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.0.4] - 2026-11-25
+
 ### Changed
 
 - Requires MDI 1.2.5, resolved from Maven Central.
