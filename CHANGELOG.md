@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Requires MDI 1.2.5-SNAPSHOT. CI builds it from a pinned MDI revision until
+  1.2.5 is released.
+
+### Fixed
+
+- Undo and redo now keep the canvas and the setup that Start runs in agreement.
+  With MDI 1.2.4, undoing a body move changed only what was drawn.
+- Dragging a velocity arrow and editing a body in its dialog are undo steps of
+  their own. Before, undo skipped them and reverted an earlier edit instead.
+
 ## [1.0.0] - 2026-09-15
 
 ### Added

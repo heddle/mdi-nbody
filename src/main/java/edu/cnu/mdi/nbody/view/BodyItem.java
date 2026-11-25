@@ -9,6 +9,7 @@ import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Point2D;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
@@ -18,11 +19,15 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 
+import edu.cnu.mdi.container.BaseContainer;
 import edu.cnu.mdi.container.IContainer;
+import edu.cnu.mdi.item.ItemChangeType;
 import edu.cnu.mdi.item.ItemModification;
+import edu.cnu.mdi.item.ItemState;
 import edu.cnu.mdi.item.Layer;
 import edu.cnu.mdi.item.PointItem;
 import edu.cnu.mdi.nbody.model.Body;
+import edu.cnu.mdi.undo.ItemEdits;
 import edu.cnu.mdi.util.SmartDoubleFormatter;
 
 /**
@@ -271,18 +276,47 @@ final class BodyItem extends PointItem {
         }
 
         try {
-            update(new Body(current.id(),
+            applyEdit(new Body(current.id(),
                     Double.parseDouble(mass.getText()),
                     Double.parseDouble(x.getText()),
                     Double.parseDouble(y.getText()),
                     Double.parseDouble(vx.getText()),
                     Double.parseDouble(vy.getText())));
-            editor.edit(this);
         } catch (IllegalArgumentException ex) {
             JOptionPane.showMessageDialog(parent,
                     "Enter finite numbers and a positive mass.",
                     "Invalid body", JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    /** Applies the values accepted in the edit dialog, publishes them and makes them undoable. */
+    void applyEdit(Body next) {
+        ItemState before = captureState();
+        update(next);
+        editor.edit(this);
+        if (getContainer() instanceof BaseContainer container) {
+            // Reporting MOVED on undo and redo is what keeps the setup in step.
+            container.recordEdit(ItemEdits.changedStates("Edit Body", container, List.of(this),
+                    Collections.singletonList(before), ItemChangeType.MOVED));
+        }
+    }
+
+    /**
+     * Snapshots the whole body for undo. The inherited point snapshot holds only
+     * the position, which would leave velocity and mass edits out of the history.
+     */
+    @Override
+    public ItemState captureState() {
+        return snapshotState(body());
+    }
+
+    @Override
+    public void restoreState(ItemState state) {
+        applyState(state);
+        if (state.extra() instanceof Body saved) {
+            body = saved;
+        }
+        setDirty(true);
     }
 
     private static void addField(JPanel panel, String label, JComponent field) {

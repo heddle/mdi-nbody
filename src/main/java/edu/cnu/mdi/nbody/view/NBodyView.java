@@ -826,6 +826,8 @@ public final class NBodyView extends SimulationView implements ItemChangeListene
                         "Start, pause, resume, or single-step the simulation.",
                         "When paused, drag bodies or double-click one to edit it; "
                                 + "Delete removes selected bodies.",
+                        "Undo (Cmd/Ctrl+Z) reverses moves, velocity drags and body edits, "
+                                + "but not deletion.",
                         "Changing physics prepares a Custom setup; press Start to begin its "
                                 + "new run.",
                         "Use the pointer to select bodies, the navigation tools to change "

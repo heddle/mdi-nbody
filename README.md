@@ -7,8 +7,18 @@ This application has its own repository; the [MDI framework](https://github.com/
 ## Build and run
 
 Requires JDK 17+, Maven, and a graphical desktop to run the application. Tests
-run headlessly. MDI 1.2.3 and the other dependencies are obtained automatically
-from Maven Central; a separate local installation of MDI is not required.
+run headlessly.
+
+This development version needs MDI 1.2.5-SNAPSHOT, which is not on Maven
+Central. Install it once from the MDI framework's `develop` branch:
+
+```sh
+git clone --branch develop https://github.com/heddle/mdi.git
+mvn -f mdi/pom.xml -DskipTests install
+```
+
+The released versions of this demonstration use a released MDI and need no
+separate installation.
 
 From the root of this repository:
 
@@ -29,6 +39,7 @@ version is centralized in the `mdi.version` property in `pom.xml`.
 - Display rate (1–60 updates/s), trail length (0–5,000 display samples), and overlays change immediately. Rendering rate does not change the numerical timestep. The worker is paced approximately in real time for small timesteps; elapsed simulation time is always step count × dt.
 - Use MDI's pointer to select a body, the hand to pan, and the zoom/box-zoom/reset tools to navigate. While the simulation is ready or paused, drag a body to change its position, double-click it to edit its mass, position, or velocity, or select it and use MDI's delete action. Selecting the square at the end of a nonzero velocity arrow lets you change velocity graphically. Editing changes the preset selector to **Custom**, clears prior trails and plots, and leaves the system in setup mode until **Start** is pressed. Bodies remain selectable but are locked while running. Body radii are bounded in screen pixels and do not represent physical radii. Arrows show velocity multiplied by 0.4 time units.
 - The camera button on the main simulation toolbar captures the canvas and offers MDI's standard choices to copy the image to the clipboard or save it as a PNG file.
+- Cmd/Ctrl+Z undoes and Cmd/Ctrl+Shift+Z (or Ctrl+Y) redoes moving a body, dragging its velocity arrow, and editing it in the double-click dialog; the canvas menu offers the same. Undo changes the setup that **Start** will run. Deleting a body cannot be undone, and deleting, adding a body, using a setup tool, loading a preset or file, and starting a run each clear the history.
 - To build a system from scratch, press **New Model**, then alternate **Add Body** and a click on the canvas. A setup may temporarily contain zero or one body; **Start** becomes available when it contains 2–50 bodies. Double-click each new body for exact mass, position, and velocity values, or drag it for visual placement. **Open…** and **Save…** read and write a portable, versioned JSON model containing the bodies and numerical parameters.
 - **Setup Tools…** provides common initial-condition operations: center the center of mass, remove net momentum, duplicate the selected body, assign it a circular velocity around another body, reverse all velocities, or scale positions and velocities. These operations act on the editable custom setup and do not start the numerical worker.
 - **Energy** plots kinetic, potential, and total energy. Its checkbox switches to `(E−E₀)/|E₀|`; this is undefined when `|E₀| ≤ 10⁻¹⁴`. **Angular momentum error** plots `(Lz−Lz₀)/|Lz₀|`, also undefined when `|Lz₀| ≤ 10⁻¹⁴`. **Selected body** shows mass, coordinates, velocity, speed, kinetic energy, and distance from the center of mass. The simulation footer also shows momentum, COM, and relative energy error.
